@@ -1,83 +1,100 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Day4.Data;
+using Day4.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Day4.Controllers
 {
     public class CategoryController : Controller
     {
-        // GET: CategoryController
-        public ActionResult Index()
+        public IActionResult Index()
         {
-            return View();
+            return View(SeedData.Categories);
         }
 
-        // GET: CategoryController/Details/5
-        public ActionResult Details(int id)
+        public IActionResult Details(int id)
         {
-            return View();
+            var category = FindCategory(id);
+            return category is null ? NotFound() : View(category);
         }
 
-        // GET: CategoryController/Create
-        public ActionResult Create()
-        {
-            return View();
-        }
+        public IActionResult Create() => View();
 
-        // POST: CategoryController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        public IActionResult Create([Bind("CategoryName")] Category category)
         {
-            try
+            if (!ModelState.IsValid)
             {
-                return RedirectToAction(nameof(Index));
+                return View(category);
             }
-            catch
-            {
-                return View();
-            }
+
+            category.CategoryId = SeedData.Categories.Count == 0
+                ? 1
+                : SeedData.Categories.Max(existingCategory => existingCategory.CategoryId) + 1;
+            SeedData.Categories.Add(category);
+            return RedirectToAction(nameof(Index));
         }
 
-        // GET: CategoryController/Edit/5
-        public ActionResult Edit(int id)
+        public IActionResult Edit(int id)
         {
-            return View();
+            var category = FindCategory(id);
+            return category is null ? NotFound() : View(category);
         }
 
-        // POST: CategoryController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public IActionResult Edit(int id, [Bind("CategoryName")] Category category)
         {
-            try
+            var existingCategory = FindCategory(id);
+            if (existingCategory is null)
             {
-                return RedirectToAction(nameof(Index));
+                return NotFound();
             }
-            catch
+
+            if (!ModelState.IsValid)
             {
-                return View();
+                category.CategoryId = id;
+                return View(category);
             }
+
+            existingCategory.CategoryName = category.CategoryName;
+            return RedirectToAction(nameof(Index));
         }
 
-        // GET: CategoryController/Delete/5
-        public ActionResult Delete(int id)
+        public IActionResult Delete(int id)
         {
-            return View();
+            var category = FindCategory(id);
+            if (category is null)
+            {
+                return NotFound();
+            }
+
+            ViewBag.ProductCount = SeedData.Products.Count(product => product.CategoryId == id);
+            return View(category);
         }
 
-        // POST: CategoryController/Delete/5
-        [HttpPost]
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
+        public IActionResult DeleteConfirmed(int id)
         {
-            try
+            var category = FindCategory(id);
+            if (category is null)
             {
-                return RedirectToAction(nameof(Index));
+                return NotFound();
             }
-            catch
+
+            if (SeedData.Products.Any(product => product.CategoryId == id))
             {
-                return View();
+                ModelState.AddModelError(string.Empty, "Không thể xóa danh mục đang có sản phẩm. Hãy chuyển hoặc xóa các sản phẩm trước.");
+                ViewBag.ProductCount = SeedData.Products.Count(product => product.CategoryId == id);
+                return View("Delete", category);
             }
+
+            SeedData.Categories.Remove(category);
+            return RedirectToAction(nameof(Index));
         }
+
+        private static Category? FindCategory(int id) =>
+            SeedData.Categories.FirstOrDefault(category => category.CategoryId == id);
     }
 }
